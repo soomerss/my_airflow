@@ -76,7 +76,7 @@ dag = DAG(
     dag_id="countries_dags",
     start_date=datetime(2023, 6, 7),
     catchup=False,
-    schedule=" 30 6 * * *",  # 0이 일요일
+    schedule=" 30 6 * * 6",  # 0이 일요일
     tags=["Countries"],
 )
 
