@@ -27,15 +27,11 @@ def extract(**context):
 
 def transform(**context):
     logging.info("transform start")
-
     # 문자열
     data = context["task_instance"].xcom_pull(
         key="return_value", task_ids="country_extract"
     )
-    logging.info(type(data))
     trans_data = json.loads(data)
-    logging.info(type(trans_data))
-    # trans_data = json.loads(data)
     records = []
     for i in trans_data:
         name = i["name"]["official"]
@@ -44,7 +40,6 @@ def transform(**context):
         records.append([name, population, area])
     logging.info("transform end")
     return records
-
 
 def load(**context):
     logging.info("load start")
@@ -70,7 +65,6 @@ def load(**context):
         print(error)
         curr.execute("ROLLBACK;")
     logging.info("load end")
-
 
 dag = DAG(
     dag_id="countries_dags",
