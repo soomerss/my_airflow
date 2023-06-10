@@ -27,19 +27,24 @@ def extract(**context):
 
 def transform(**context):
     logging.info("transform start")
+
     # 문자열
     data = context["task_instance"].xcom_pull(
         key="return_value", task_ids="country_extract"
     )
+    logging.info(type(data))
     trans_data = json.loads(data)
+    logging.info(type(trans_data))
+    # trans_data = json.loads(data)
     records = []
     for i in trans_data:
-        name = i["name"]["official"]
+        name = i["name"]["official"].replace("'", "''")
         population = i["population"]
         area = i["area"]
         records.append([name, population, area])
     logging.info("transform end")
     return records
+
 
 def load(**context):
     logging.info("load start")
@@ -58,13 +63,17 @@ def load(**context):
         )
         for i in records:
             curr.execute(
-                f"INSERT INTO {schema}.country_info VALUES ('{i[0]}','{i[1]}','{i[2]}'"
+                f"INSERT INTO {schema}.country_info VALUES ('{i[0]}','{i[1]}','{i[2]}')"
             )
         curr.execute("COMMIT;")
+        logging.info("load success")
     except (Exception, psycopg2.DatabaseError) as error:
         print(error)
+        logging.info("load fail")
         curr.execute("ROLLBACK;")
+
     logging.info("load end")
+
 
 dag = DAG(
     dag_id="countries_dags",
