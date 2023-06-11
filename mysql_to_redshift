@@ -1,0 +1,55 @@
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.providers.amazon.aws.transfers.s3_to_redshift import \
+    S3ToRedshiftOperator
+from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
+
+dag = DAG(
+    dag_id="mysql_to_redshift_v3",
+    start_date=datetime(2022, 12, 31),
+    catchup=True,
+    schedule="0 1 * * *",
+    max_active_runs=1,
+    default_args={
+        "retries": 1,
+        "retry_delay": timedelta(minutes=3),
+    },
+)
+
+
+schema = "poqw741"
+table = "nps"
+s3_bucket = "grepp-data-engineering"
+s3_key = schema + "-" + table
+
+# 옮기기
+mysql_to_s3 = SqlToS3Operator(
+    task_id="mysql_to_s3",
+    query="""SELECT * from prod.nps
+    WHERE DATE(created_at) = DATE('{{execution_date}}');""",
+    s3_bucket=s3_bucket,
+    s3_key=s3_key,
+    sql_conn_id="mysql_conn_id",
+    aws_conn_id="aws_conn_id",
+    verify=False,
+    replace=True,
+    pd_kwargs={"index": False, "header": False},
+    dag=dag,
+)
+
+s3_to_redshift = S3ToRedshiftOperator(
+    task_id="s3_to_redshift",
+    s3_bucket=s3_bucket,
+    s3_key=s3_key,
+    schema=schema,
+    table=table,
+    copy_options=["csv"],
+    redshift_conn_id="redshift_dev_db",
+    aws_conn_id="aws_conn_id",
+    method="UPSERT",
+    upsert_keys=["id"],
+    dag=dag,
+)
+
+mysql_to_s3 >> s3_to_redshift
